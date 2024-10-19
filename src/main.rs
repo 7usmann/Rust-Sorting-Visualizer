@@ -1,17 +1,17 @@
-fn insertion_sort(arr: &mut [i32]) {
-    for i in 1..arr.len() {
-        let key = arr[i];
-        let mut j = i;
-        while j > 0 && arr[j - 1] > key {
-            arr[j] = arr[j - 1];
-            j -= 1;
-        }
-        arr[j] = key;
-    }
-}
+mod sorting_algorithms;
+
+use sorting_algorithms::bubble_sort::bubble_sort;
 
 fn main() {
-    let mut arr = [9, 5, 3, 8, 2];
-    insertion_sort(&mut arr);
-    println!("{:?}", arr);
+
+    let mut arr = vec![64, 34, 25, 12, 22, 11, 90];
+    println!("Unsorted array: {:?}", arr);
+
+    let steps = bubble_sort(&mut arr);
+
+    println!("Sorted array: {:?}", arr);
+
+    for (i, step) in steps.iter().enumerate() {
+        println!("Step {}: {:?}", i + 1, step);
+    }
 }
