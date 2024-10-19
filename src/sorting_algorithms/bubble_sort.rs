@@ -1,17 +1,15 @@
 pub fn bubble_sort(arr: &mut [i32]) -> Vec<Vec<i32>> {
-    let mut steps = Vec::new();
-    let len = arr.len();
-    let mut swap = true;
+    let mut steps = Vec::new(); // Store all steps of the sorting process
 
-    while swap {
-        swap = false;
-        for i in 0..len - 1 {
-            if arr[i] > arr[i + 1] {
-                arr.swap(i, i + 1);
-                swap = true; 
+    let len = arr.len();
+    for i in 0..len {
+        for j in 0..len - i - 1 {
+            if arr[j] > arr[j + 1] {
+                arr.swap(j, j + 1); // Perform the swap
+                steps.push(arr.to_vec()); // Capture the array state after every swap
             }
         }
-        steps.push(arr.to_vec());
     }
-    steps
+
+    steps // Return all steps for visualization
 }
