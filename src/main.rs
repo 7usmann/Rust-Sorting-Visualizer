@@ -1,16 +1,32 @@
 extern crate piston_window;
 
 mod sorting_algorithms;
+use sorting_algorithms::bubble_sort::bubble_sort;
+
+mod state_logic;
+use state_logic::state_bs::bubble_sort_visualization;
+use state_logic::state_choice::choice_window;
+use state_logic::state_mm::main_menu;
+
+mod buttons;
+use buttons::but_back::draw_back_button;
 
 use piston_window::*;
-use sorting_algorithms::bubble_sort::bubble_sort;
+
 use std::time::{Duration, Instant};
-use std::thread::sleep;
+
+enum AppState {
+    MainMenu,
+    ChoiceWindow,
+    BubbleSortVisualization,
+}
 
 fn main() {
-    let mut arr = vec![64, 34, 25, 12, 22, 11, 90];
+    let mut arr_original = vec![64, 34, 25, 12, 22, 11, 90]; // Original unsorted array
+    let mut arr = arr_original.clone(); // Working array for sorting
     println!("Unsorted array: {:?}", arr);
 
+    let mut state = AppState::MainMenu;
     let mut window: PistonWindow = WindowSettings::new("Sorting Visualization", [800, 600])
         .exit_on_esc(true)
         .build()
@@ -20,64 +36,96 @@ fn main() {
     let mut total_steps = 0;
     let mut finished = false;
 
-    // Introduce a delay system
-    let mut last_update = Instant::now();
+    // Initialize mouse position
+    let mut mouse_pos: [f64; 2] = [0.0, 0.0]; // Store the mouse position globally
+
+    // Step visualization variables for bubble sort
+    let mut steps: Vec<Vec<i32>> = vec![];
     let update_delay = Duration::from_millis(500); // Delay of 500 ms between each step
-
-    // Find the max value for the dynamic y-axis
-    let max_value = *arr.iter().max().unwrap() as f64;
-    let bar_width = (700.0 / arr.len() as f64) - 5.0; // Width of each bar (700 px with spacing)
-
-    let mut is_paused = true; // Flag to indicate a pause before sorting
-    let mut steps: Vec<Vec<i32>> = vec![]; // Declare steps but do not fill them yet
+    let mut last_update = Instant::now();
 
     while let Some(event) = window.next() {
-        window.draw_2d(&event, |c, g, _| {
-            clear([1.0; 4], g); // Clear the screen (white background)
 
-            // Display the initial unsorted state or the current sorting step
-            let state = if is_paused { &arr } else { &steps[current_step] };
+        // Capture mouse position when it moves
+        if let Some(pos) = event.mouse_cursor_args() {
+            mouse_pos = pos; // Update mouse_pos whenever the mouse moves
+        }
 
-            for (i, &value) in state.iter().enumerate() {
-                let bar_height = value as f64 * (500.0 / max_value); // Scale height based on max value
+        // Handle mouse clicks
+        if let Some(Button::Mouse(MouseButton::Left)) = event.press_args() {
+            println!("Mouse clicked at: {:?}", mouse_pos); // Use the stored mouse position
 
-                // Draw the bar with some spacing
-                rectangle(
-                    [0.0, 0.0, 1.0, 1.0], // Color of the bar (blue)
-                    [
-                        50.0 + i as f64 * (bar_width + 5.0), // X position with spacing
-                        550.0 - bar_height,                  // Y position (inverted)
-                        bar_width,                           // Bar width
-                        bar_height,                          // Bar height
-                    ],
-                    c.transform,
-                    g,
-                );
+            match state {
+                AppState::MainMenu => {
+                    // Check if the "Continue" button is clicked in the Main Menu
+                    if mouse_pos[0] > 300.0 && mouse_pos[0] < 500.0 && mouse_pos[1] > 300.0 && mouse_pos[1] < 380.0 {
+                        println!("Continue button clicked!");
+                        state = AppState::ChoiceWindow; // Go to the white screen with the red button
+                    }
+                }
+
+                AppState::ChoiceWindow => {
+                    // Check if the red button is clicked on the white screen
+                    if mouse_pos[0] > 300.0 && mouse_pos[0] < 500.0 && mouse_pos[1] > 300.0 && mouse_pos[1] < 380.0 {
+                        println!("Red button clicked! Transitioning to bubble sort visualization...");
+                        arr = arr_original.clone(); // Reset the array to the original unsorted state
+                        steps = bubble_sort(&mut arr); // Run bubble sort and store steps
+                        total_steps = steps.len();
+                        current_step = 0;
+                        last_update = Instant::now(); // Reset the timer for step delay
+                        state = AppState::BubbleSortVisualization; // Go to bubble sort visualization
+                    }
+                }
+
+                AppState::BubbleSortVisualization => {
+                    // No specific actions for mouse clicks in this state
+                }
             }
-        });
 
-        if is_paused {
-            // If we're in the initial state, we pause for 2 seconds
-            if last_update.elapsed() >= Duration::from_secs(2) {
-                is_paused = false; // End the pause after 2 seconds
-                last_update = Instant::now(); // Reset the timer
-
-                // Now, call the sorting algorithm AFTER the pause, so we capture the unsorted array first
-                steps = bubble_sort(&mut arr); // Call bubble_sort and store steps
-                total_steps = steps.len(); // Capture the number of steps
-            }
-        } else if !finished {
-            // Sorting visualization starts after the pause
-            let now = Instant::now();
-            if now.duration_since(last_update) >= update_delay {
-                last_update = now; // Reset the timer
-
-                current_step += 1;
-                if current_step >= total_steps - 1 {
-                    current_step = total_steps - 1;
-                    finished = true; // End the sorting process
+            // "Back" button (top-left corner) click handling
+            if mouse_pos[0] > 10.0 && mouse_pos[0] < 60.0 && mouse_pos[1] > 10.0 && mouse_pos[1] < 40.0 {
+                println!("Back button clicked!");
+                match state {
+                    AppState::ChoiceWindow => {
+                        state = AppState::MainMenu; // Go back to Main Menu
+                    }
+                    AppState::BubbleSortVisualization => {
+                        state = AppState::ChoiceWindow; // Go back to white screen with red button
+                    }
+                    _ => {} // No back action from MainMenu
                 }
             }
         }
+
+        window.draw_2d(&event, |c, g, _| {
+            match state {
+                // Main Menu
+                AppState::MainMenu => {
+                    state_logic::state_mm::main_menu(c, g, mouse_pos);
+                }
+
+                // White screen with choice (red button)
+                AppState::ChoiceWindow => {
+                    state_logic::state_choice::choice_window(c, g, mouse_pos);
+                }
+
+                // Bubble Sort Visualization
+                AppState::BubbleSortVisualization => {
+                    if last_update.elapsed() >= update_delay {
+                        last_update = Instant::now();
+                        current_step += 1;
+                        if current_step >= total_steps {
+                            current_step = total_steps - 1;
+                            finished = true;
+                        }
+                    }
+                    state_logic::state_bs::bubble_sort_visualization(c, g, current_step, &steps, &arr, finished);
+                }
+            }
+
+            // Draw the back button for every screen
+            buttons::but_back::draw_back_button(c, g);
+        });
+
     }
 }
